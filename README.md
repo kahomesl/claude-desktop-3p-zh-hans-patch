@@ -88,6 +88,65 @@ with `--app` — see [installing from a backup](docs/INSTALL.md#installing-from-
 
 ---
 
+## One-click install
+
+If you would rather not use a terminal, double-click **`启动Claude中文版.command`**
+in the repository folder.
+
+On the first run it will:
+
+1. open the macOS folder picker so you can select the language resource directory
+   you prepared;
+2. remember that choice in `~/.config/claude-zh-patch/config.json` — mode `600`,
+   holding nothing but the two paths you chose;
+3. run the same `check → apply → verify` the command line uses, printing progress
+   in Chinese;
+4. offer to start the Chinese copy.
+
+After that, the same double-click verifies the existing copy and opens it.
+
+It never asks for an administrator password, never disables SIP or Gatekeeper,
+never terminates a process, and never overwrites an existing bundle — if one is
+already at the target it is verified instead. The version allowlist, the ad-hoc
+signing and the ICU validation are the same code the command line runs; the
+launcher is a front end, not a second implementation.
+
+The launcher needs a working Python 3.9 or newer, because it runs this project's
+code. macOS no longer ships one; if yours is missing the launcher says so and
+points you at `xcode-select --install`.
+
+### macOS will probably block it the first time
+
+A `.command` file that arrived by being **downloaded** carries a quarantine
+attribute, and macOS refuses to run those. You may see a warning about an
+unidentified developer, or nothing may appear to happen. That is ordinary macOS
+behaviour for any downloaded script — and this project does **not** ask you to
+turn Gatekeeper off to get past it.
+
+Any of these avoids the problem:
+
+- **Clone with `git`**, which does not set the quarantine attribute:
+
+  ```bash
+  git clone https://github.com/kahomesl/claude-desktop-3p-zh-hans-patch.git
+  ```
+
+- **Or skip the launcher** and use [Quick start](#quick-start) below, which does
+  the same work from a terminal.
+- If you downloaded a ZIP, you can clear the attribute yourself — but only after
+  reading the script:
+
+  ```bash
+  xattr -d com.apple.quarantine 启动Claude中文版.command
+  ```
+
+The launcher is verified to the same extent as everything else here, which is the
+single environment described in [Verified environment](#verified-environment):
+macOS 26.5.2 on Apple Silicon with **SIP disabled**. **Compatibility with SIP
+enabled is unconfirmed**, and no SIP-enabled Mac has been tested.
+
+---
+
 ## Quick start
 
 ```bash
@@ -255,6 +314,10 @@ on" is not the same claim as "it works on your Mac".
 | `version` | Tool version and compatibility table. |
 
 Add `--json` anywhere for machine-readable output.
+
+The double-clickable launcher above is a front end for these same commands, not a
+replacement: `启动Claude中文版.command` calls `check`, `apply` and `verify` in
+turn and does nothing else.
 
 Exit codes: `0` success, `1` error, `2` usage, `3` unsupported application
 version, `4` language resource rejected, `5` bundle structure not recognised.
