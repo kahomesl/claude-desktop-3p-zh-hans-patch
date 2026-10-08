@@ -9,6 +9,31 @@ compatibility with application versions is tracked separately in
 
 Nothing yet.
 
+## [0.1.0-beta] — pending release
+
+Beta compatibility update: add official Claude Desktop 2.26454.2 to the
+strict installable allowlist. The original 2.26454.0 remains supported.
+Both builds share the exact three rewrite-target file SHA-256 fingerprints.
+
+A new 2.26454.2 copy was built and ad-hoc signed on the same Apple Silicon
+Mac as the original reference (macOS 26.5.2, SIP disabled). Source signature,
+modified bundle signature, language file integrity, Chinese language picker,
+Chinese UI, and locale persistence after restart were verified.
+An already-configured DeepSeek Gateway responded "ok" to two prompts.
+Eleven legal ICU removed-branch collapses were accepted by the unchanged
+strict localization validator.
+
+Limitations remain explicit: SIP-enabled Macs, Intel, other macOS releases,
+Keychain, login, native integrations, and profile isolation are unverified.
+Gatekeeper rejects the locally generated ad-hoc copy; the tool never
+recommends disabling SIP or Gatekeeper. No third-party app, translation
+resource, or proprietary JavaScript is shipped.
+
+The temporary candidate-only build route used during validation was retired.
+The standard installer now supports 2.26454.2 without a version-bypass
+switch. Packaging normalizes 0.1.0-beta to PEP 440 version 0.1.0b0.
+
+
 ## [0.1.0-alpha] — 2026-10-08
 
 First public release. Tagged `v0.1.0-alpha`. The version has a single source of
