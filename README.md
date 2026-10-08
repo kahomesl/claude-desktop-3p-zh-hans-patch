@@ -211,20 +211,22 @@ The practical consequences:
 
 ### Verified environment
 
-The single build in the compatibility matrix was verified here:
+Both supported builds were tested on the same Mac:
 
 | | |
 | --- | --- |
 | macOS | 26.5.2 (25F84) |
 | Architecture | Apple Silicon (arm64) |
-| Claude Desktop | 2.26454.0 |
+| Claude Desktop | 2.26454.0 and 2.26454.2 |
 | System Integrity Protection | **disabled on the verification machine** |
 | Gatekeeper assessment of the copy | `spctl` reported *rejected* |
 | Copy origin | created locally, so not quarantined |
 
-Verified at runtime: the interface renders in Simplified Chinese, the language
-picker offers the locale, a conversation through a third-party gateway
-completed, and the setting survived a restart.
+Runtime verification for both exact builds includes Chinese UI and language
+picker rendering, and persistence after restart. On 2.26454.2, a configured
+DeepSeek Gateway successfully returned two separate "ok" replies. Gateway
+configuration is not supplied by this tool; Keychain and native integration
+behavior have not been verified.
 
 > **Compatibility with SIP enabled is unconfirmed.** System Integrity Protection
 > was **disabled** on the verification machine, which is not how macOS ships by
@@ -232,9 +234,9 @@ completed, and the setting survived a restart.
 > to disable SIP, and you should not disable it — but whether the result works
 > with SIP on is simply not known.
 
-**Not verified:** SIP enabled, Intel, any other macOS release, any other
-application version, Keychain behaviour, native integrations, or anything to do
-with a specific gateway or switch tool. "It works on the machine it was tested
+**Not verified:** SIP enabled, Intel, other macOS versions, application builds
+outside the two pinned versions, Keychain behavior, native integrations,
+independent user-profile isolation, or reliability across other Gateway models. "It works on the machine it was tested
 on" is not the same claim as "it works on your Mac".
 
 ---
