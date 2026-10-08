@@ -1,0 +1,80 @@
+name: Publish 0.1.0-beta (one-time)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-0.1.0-beta.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-v0.1.0-beta
+  cancel-in-progress: false
+
+jobs:
+  prerelease:
+    if: github.repository == 'kahomesl/claude-desktop-3p-zh-hans-patch' && github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    steps:
+      - name: Checkout merged main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check exact beta version and supported builds
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, str(Path('src').resolve()))
+          from claude_zh_patch import __version__
+          assert __version__ == '0.1.0-beta', __version__
+          info = json.loads(subprocess.check_output(['./zh-patch', '--json', 'version'], text=True))
+          assert info['tool'] == '0.1.0-beta', info
+          assert info['installable'] == ['2.26454.0', '2.26454.2'], info
+          assert info['examinedNotInstallable'] == [], info
+          PY
+      - name: Run full unit suite and repository security scan
+        run: |
+          python3 -m unittest discover -s tests -t .
+          ./zh-patch scan .
+      - name: Check official release notes and clean checkout
+        shell: bash
+        run: |
+          test -s docs/RELEASE-0.1.0-beta.md
+          test -z "$(git status --porcelain)"
+      - name: Create annotated tag for this merged commit
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --tags origin refs/tags/v0.1.0-beta; then
+            echo 'v0.1.0-beta already exists; refusing to retag or overwrite.' >&2
+            exit 1
+          fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            -c tag.gpgSign=false tag -a v0.1.0-beta -m 'v0.1.0-beta prerelease'
+          git push origin refs/tags/v0.1.0-beta
+      - name: Publish GitHub pre-release with no proprietary attachments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.1.0-beta \
+            --verify-tag \
+            --title 'v0.1.0-beta' \
+            --notes-file docs/RELEASE-0.1.0-beta.md \
+            --prerelease
+      - name: Verify published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v0.1.0-beta --json tagName,isPrerelease,isDraft,url,assets,targetCommitish
+          test "$(git rev-list -n 1 v0.1.0-beta)" = "$GITHUB_SHA"
