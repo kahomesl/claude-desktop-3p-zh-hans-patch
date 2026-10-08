@@ -51,9 +51,19 @@ modified. It does **not** produce an installable app.
 
 ## Step B — isolated runtime validation (not yet performed)
 
-Once Step A passes, use a separate, explicit candidate-testing branch or
-locally prepared test harness, rather than weakening the released installer's
-allowlist. Keep the existing 2.26454.0 Chinese copy untouched. Test 2.26454.2
+Once Step A passes, this adaptation branch has a dedicated candidate builder.
+It temporarily registers the exact fingerprinted version only within its own
+Python process; the public CLI remains unchanged. Run with the real user-owned
+catalog directory (do not upload it to GitHub):
+
+    python3 scripts/build_candidate_2_26454_2.py \\
+      --app /Applications/Claude.app \\
+      --catalog-dir /path/to/your/catalog \\
+      --target /Applications/Claude-3P-ZH-2.26454.2.app
+
+The builder refuses any existing target and any output name other than
+Claude-3P-ZH-2.26454.2.app, and statically verifies its new copy.
+Do not overwrite the old Chinese app or expose a candidate as a stable release. Keep the existing 2.26454.0 Chinese copy untouched. Test 2.26454.2
 from a fresh officially signed source into a **new, uniquely named target app**.
 Never replace the existing Claude.app or Claude-3P-ZH.app.
 
