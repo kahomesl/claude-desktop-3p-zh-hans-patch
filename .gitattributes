@@ -1,0 +1,9 @@
+# Everything is text; normalise line endings so diffs stay small.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.icns binary
+
+# Keep the licence text byte-identical to the canonical Apache 2.0 file.
+LICENSE -text

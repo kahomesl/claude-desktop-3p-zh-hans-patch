@@ -1,0 +1,56 @@
+claude-desktop-3p-zh-hans-patch
+Copyright 2026 the claude-desktop-3p-zh-hans-patch contributors
+
+This product includes software developed as part of the
+claude-desktop-3p-zh-hans-patch project.
+
+===============================================================================
+
+Scope of the licence
+
+The Apache License 2.0 in LICENSE applies to the original work in this
+repository only: the Python sources under src/, the tests under tests/, the
+documentation under docs/ and the top-level Markdown files, the JSON schemas
+under schema/, and the templates under templates/.
+
+The following are not covered by that licence, and this project claims no rights
+over them:
+
+  * Claude, Claude Desktop, or any other Anthropic application, source code,
+    resource, translation, or binary;
+
+  * any message catalog or localization file obtained from Anthropic or from
+    claude.ai, or derived from one;
+
+  * the names "Claude" and "Anthropic" and any associated marks, which remain
+    the property of Anthropic PBC and are used here only to describe what this
+    tool interoperates with;
+
+  * any third-party dependency, each of which carries its own licence.
+
+This repository contains no Anthropic material and no translation data. It ships
+no language resource of any kind: supplying one is a prerequisite of use, and the
+user is responsible for holding the rights to whatever they supply.
+
+===============================================================================
+
+Trademarks and affiliation
+
+"Claude" and "Anthropic" are trademarks of Anthropic PBC. This is an
+independent, unofficial project. It is not produced by, endorsed by, sponsored
+by, or affiliated with Anthropic or with any provider of third-party model
+routing or switching software. Those names appear here descriptively, to state
+which application and which class of configuration this tool operates on.
+
+===============================================================================
+
+Short strings reproduced for interoperability
+
+The source contains short byte sequences used to locate exact positions within a
+specific build, including the list of locale identifiers the application offers
+in its language picker. Locale identifiers are factual interface data required to
+perform the replacement, not creative content. The localized display name
+"简体中文" is the CLDR endonym for the zh-Hans locale.
+
+The three sha256 digests recorded in src/claude_zh_patch/compat.py are
+fingerprints used to refuse unexpected builds. They are not content.

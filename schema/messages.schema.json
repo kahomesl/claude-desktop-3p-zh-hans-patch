@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kahomesl/claude-desktop-3p-zh-hans-patch/schema/messages.schema.json",
+  "title": "Message catalog section",
+  "description": "A flat map from opaque message key to ICU MessageFormat pattern. Every value must be a well-formed ICU message; the loader validates each one and reports the offending key.",
+  "type": "object",
+  "propertyNames": {
+    "type": "string",
+    "minLength": 1
+  },
+  "additionalProperties": {
+    "type": "string"
+  }
+}

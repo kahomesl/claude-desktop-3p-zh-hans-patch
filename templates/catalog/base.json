@@ -1,0 +1,5 @@
+{
+  "example.greeting": "这是一个格式示例，不是可用的翻译。",
+  "example.counted": "共 {count} 项",
+  "example.selected": "{count, plural, one {已选择 # 项} other {已选择 # 项}}"
+}

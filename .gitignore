@@ -1,0 +1,54 @@
+# Local language resources are prepared by each user and must never be committed.
+# Anchored to the repository root so that templates/catalog/ is not caught.
+/local-catalog/
+/my-catalog/
+/catalog/
+*-catalog/
+*.catalog/
+
+# Extracted or modified application material.
+*.app/
+*.asar
+*.asar.unpacked/
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.pfx
+*.key
+*.dylib
+*.node
+
+# Credentials and local configuration.
+.env
+.env.*
+!.env.example
+*.pem
+*.cer
+*.crt
+secrets/
+credentials*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors
+.idea/
+.vscode/
+*.swp

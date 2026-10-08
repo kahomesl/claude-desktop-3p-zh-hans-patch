@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "locale": "zh-Hans",
+  "displayName": "简体中文",
+  "license": "REPLACE ME -- the licence you hold for these messages",
+  "origin": "REPLACE ME -- where these messages came from and under what authority",
+  "files": {
+    "base": "base.json"
+  }
+}

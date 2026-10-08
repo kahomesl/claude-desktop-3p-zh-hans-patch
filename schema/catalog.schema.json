@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kahomesl/claude-desktop-3p-zh-hans-patch/schema/catalog.schema.json",
+  "title": "Language resource manifest",
+  "description": "Describes a catalog directory supplied to --catalog-dir. The user prepares the directory and is responsible for holding the rights to the messages it contains. This project ships no translation data.",
+  "type": "object",
+  "required": ["schemaVersion", "locale", "files"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "Manifest format version. Only 1 exists."
+    },
+    "locale": {
+      "enum": ["zh-Hans", "zh-CN"],
+      "description": "Target locale. Both spellings are accepted and written as aliases of the same catalog."
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Human-readable name shown in install output. Defaults to the locale tag."
+    },
+    "license": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Licence you declare for the messages, e.g. 'CC-BY-SA-4.0' or 'self-authored'. Recorded in the install marker and shown in reports. Declaring a licence here does not grant any right to Claude, Claude Desktop or any Anthropic material."
+    },
+    "origin": {
+      "type": "string",
+      "maxLength": 400,
+      "description": "Where the messages came from and under what authority, in your own words. Recorded in the install marker."
+    },
+    "files": {
+      "type": "object",
+      "required": ["base"],
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/relativeFile",
+          "description": "Main interface messages. Required and must not be empty."
+        },
+        "dynamic": {
+          "$ref": "#/$defs/relativeFile",
+          "description": "Optional dynamic messages."
+        },
+        "overrides": {
+          "$ref": "#/$defs/relativeFile",
+          "description": "Optional overrides."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relativeFile": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^(?!/)(?!.*\\.\\.)[^\\u0000]+$",
+      "description": "Path relative to the catalog directory. Absolute paths and parent traversal are rejected."
+    }
+  }
+}

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Zero-install launcher: runs the tool straight from a checkout.
+#
+#   ./zh-patch version
+#   ./zh-patch check
+#   ./zh-patch apply --catalog-dir ~/my-catalog
+#
+# Installing with pip also works and gives you a `claude-zh-patch` command:
+#   python3 -m pip install .
+set -euo pipefail
+
+here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+exec python3 -c \
+  'import runpy, sys; sys.path.insert(0, sys.argv.pop(1)); runpy.run_module("claude_zh_patch", run_name="__main__")' \
+  "$here/src" "$@"
