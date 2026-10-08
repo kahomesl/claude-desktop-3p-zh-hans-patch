@@ -60,9 +60,10 @@ class CandidatePreflightTests(unittest.TestCase):
 
     def test_valid_structure_is_only_a_static_pass(self):
         report = self._inspect_with_mocks()
-        self.assertEqual(report["status"], "STATIC_PASS_RUNTIME_UNVERIFIED")
-        self.assertFalse(report["runtimeVerified"])
-        self.assertFalse(report["installable"])
+        self.assertEqual(report["status"], "STATIC_PASS")
+        self.assertFalse(report["runtimeVerificationPerformedByThisCommand"])
+        self.assertTrue(report["runtimeEvidenceRecorded"])
+        self.assertTrue(report["installable"])
         self.assertEqual(report["matchedAnchors"], 3)
         self.assertEqual(report["javascriptSyntax"], "PASS")
 
