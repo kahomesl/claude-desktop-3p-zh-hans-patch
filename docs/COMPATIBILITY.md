@@ -1,70 +1,76 @@
 # Compatibility matrix
 
-The installable versions are defined in code, in
-[`src/claude_zh_patch/compat.py`](../src/claude_zh_patch/compat.py). This page
-explains what the entries mean and what is required to add one.
+The installable versions are defined in
+[src/claude_zh_patch/compat.py](../src/claude_zh_patch/compat.py).
+The allowlist is exact-version AND exact-file-hash gated. No unknown or
+unvalidated build can be patched by using a command-line override.
 
-## Installable
+## Runtime-verified, installable builds
 
-A version is installable only when it appears in `SUPPORTED_VERSIONS`.
-
-| Version | Status | Verified on |
+| Claude Desktop version | Status | Verified environment |
 | --- | --- | --- |
-| `2.26454.0` | **Runtime-verified** | macOS 26.5.2, Apple Silicon, SIP disabled |
+| 2.26454.0 | **Runtime-verified** | macOS 26.5.2 (25F84), Apple Silicon, SIP disabled |
+| 2.26454.2 | **Runtime-verified** | macOS 26.5.2 (25F84), Apple Silicon, SIP disabled |
 
-### `2.26454.0` — the reference build
+Both rows refer to **one verification Mac**, not independent test coverage.
+The output is locally generated and ad-hoc signed, with no quarantine attribute.
+The modified copy is rejected by the Gatekeeper spctl assessment. **Compatibility
+on SIP-enabled Macs is unknown, and disabling SIP is not recommended.**
 
-This is the only build that may be installed, and the only one that has been
-run. Verified at runtime:
+### 2.26454.0 — original reference
 
-| Check | Result |
+Runtime-confirmed: full application launch, Simplified Chinese language picker,
+Chinese UI rendering, a completed third-party Gateway conversation, and locale
+persistence across a restart.
+
+### 2.26454.2 — runtime-tested extension (2026-10-08)
+
+The following evidence comes from the user's actual Mac, with a signed
+unmodified 2.26454.2 as source and a new, separately named output app.
+
+| Check | Result / scope |
 | --- | --- |
-| Three rewrite sites matched with the expected occurrence counts | pass |
-| Bundle re-signed ad-hoc, deep verification | pass |
-| Restricted entitlements removed | pass |
-| Interface renders in Simplified Chinese | pass |
-| Language picker offers the locale | pass |
-| Conversation through a third-party gateway | pass |
-| Locale choice survives a restart | pass |
+| Original app code signature | pass |
+| Exact-version, Bundle ID and three target file hashes | pass |
+| Three rewrite anchor locations, whole-tree allowlist count | pass |
+| Rewritten JavaScript Node ESM syntax checks | pass |
+| English base/dynamic catalog | 33,600 / 49 messages |
+| Chinese catalog shape, ICU format and coverage | pass; 11 accepted removed-branch collapses |
+| Isolated app build and ad-hoc signature verification | pass |
+| Gatekeeper spctl assessment of generated app | rejected; expected for ad-hoc signature |
+| Candidate opens without a reported crash | pass |
+| Chinese locale in picker; interface renders in Chinese | pass |
+| Quit/restart retains Chinese locale | pass |
+| Existing Gateway model selector lists DeepSeek V4.1 Flash | observed |
+| DeepSeek Gateway request and reply | two separate prompts received "ok" |
+| SIP enabled, Intel, other macOS releases | **not tested** |
+| Keychain, sign-in, system/native integrations, full profile isolation | **not tested** |
 
-Environment, stated plainly because it bounds the claim: macOS 26.5.2 (25F84) on
-Apple Silicon, **System Integrity Protection disabled**, and a copy created
-locally so it carries no quarantine attribute. `spctl` reports the resulting copy
-as *rejected*. Nothing here was verified on a machine with SIP enabled, on Intel,
-or on any other macOS release.
+**Limitations of the evidence:** The app was built on a machine with SIP already
+disabled; its working Gateway settings were already configured and may be shared
+with other Claude app copies. Being a separately named .app does **not** imply
+isolated account settings or user-profile storage. A screenshot of two successful
+Gateway replies does not establish reliability of every model or native
+integration. This localization tool does not itself enable third-party Gateway
+connections.
 
-## Examined but not installable
+### Exact structural fingerprints for both builds
 
-These builds have been inspected statically. They are deliberately **not
-installable**: no runtime verification has been carried out.
+Static inspection confirmed that the three modified JS files in 2.26454.0
+and 2.26454.2 were byte-identical. These are SHA-256 fingerprints, not
+proprietary file contents.
 
-| Version | Status |
+| File | SHA-256 |
 | --- | --- |
-| `2.26454.2` | **Not installable** — static inspection only |
+| shared-2-DgffKyBW.js | d5e17aa1e80c60af3784988242e1c673308c5746bfdb45a1c8b449da17f6effb |
+| c49da61a8-BM3hC-jO.js | b54dfa935ab39b7a7f4de79b3a2e5a0ecb985a0ae8ad0697274e0bf903f719f6 |
+| shared-25-C8tkIaeS.js | 738b690f0637bc20727bfe70341307cb4712b61cdaa830c1b322f1bdbe7b5f9e |
 
-### Why `2.26454.2` is interesting but still refused
+## Other builds: not installable
 
-Static inspection of the published `2.26454.2` build found the three files this
-tool rewrites to be **byte-for-byte identical** to the reference build:
-
-| File | sha256 |
-| --- | --- |
-| `shared-2-DgffKyBW.js` | `d5e17aa1e80c60af3784988242e1c673308c5746bfdb45a1c8b449da17f6effb` |
-| `c49da61a8-BM3hC-jO.js` | `b54dfa935ab39b7a7f4de79b3a2e5a0ecb985a0ae8ad0697274e0bf903f719f6` |
-| `shared-25-C8tkIaeS.js` | `738b690f0637bc20727bfe70341307cb4712b61cdaa830c1b322f1bdbe7b5f9e` |
-
-Every anchor also matched its expected occurrence count. So the code paths this
-tool touches are unchanged, and the structural risk is low.
-
-That is still not the same as having run it. Nothing is known about whether this
-build starts after re-signing, whether the interface renders, whether the locale
-survives a restart, or whether an existing configuration still works. A
-structural match is evidence, not a result.
-
-**Consequence:** the installer refuses `2.26454.2` with exit code 3. If your
-installed application has already been updated to it, install from a copy of
-`2.26454.0` instead — see
-[installing from a backup](INSTALL.md#installing-from-a-backup).
+No other application versions have been runtime verified. A changed version
+remains blocked even when one or two anchors happen to match. Do not bypass
+the version check or guess the release's internal layout.
 
 ## Refusal behaviour
 

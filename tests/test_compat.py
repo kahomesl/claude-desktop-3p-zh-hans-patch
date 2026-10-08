@@ -25,16 +25,23 @@ class ReferenceTableTests(unittest.TestCase):
         self.assertIsNotNone(info, "the reference build must stay installable")
         self.assertTrue(info.runtime_verified)
 
-    def test_anchor_only_build_is_not_installable(self):
-        self.assertNotIn(
-            "2.26454.2",
-            compat.SUPPORTED_VERSIONS,
-            "2.26454.2 was inspected but never run; it must not be installable",
-        )
-        self.assertIn("2.26454.2", compat.ANCHOR_ONLY_VERSIONS)
+    def test_desktop_2264542_is_runtime_verified_and_installable(self):
+        info = compat.SUPPORTED_VERSIONS.get("2.26454.2")
+        self.assertIsNotNone(info)
+        self.assertTrue(info.runtime_verified)
+        self.assertIn("SIP disabled", info.verified_environment)
+        self.assertNotIn("2.26454.2", compat.ANCHOR_ONLY_VERSIONS)
 
-    def test_exactly_one_installable_version_in_v0_1_0(self):
-        self.assertEqual(sorted(compat.SUPPORTED_VERSIONS), ["2.26454.0"])
+    def test_both_verified_versions_are_installable(self):
+        self.assertEqual(
+            sorted(compat.SUPPORTED_VERSIONS), ["2.26454.0", "2.26454.2"]
+        )
+
+    def test_verified_builds_have_identical_target_fingerprints(self):
+        self.assertEqual(
+            compat.SUPPORTED_VERSIONS["2.26454.2"].file_sha256,
+            compat.SUPPORTED_VERSIONS["2.26454.0"].file_sha256,
+        )
 
     def test_recorded_digests_are_well_formed(self):
         for version, info in compat.SUPPORTED_VERSIONS.items():
