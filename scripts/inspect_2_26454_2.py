@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Read-only preflight for Claude Desktop 2.26454.2.
 
-This does NOT make 2.26454.2 installable. It verifies an untouched, signed
-source app against the three byte-identical rewrite targets previously examined
-in 2.26454.0. No source files, applications or user profiles are modified.
-
-Run on the Mac holding the actual official 2.26454.2 build. A passing result
-means only that the static checks succeeded, NOT that the patched app will start.
+This checks an untouched signed source against the three exact fingerprinted
+rewrite targets. No application file or user profile is modified. The command
+performs ONLY static checks; any previously recorded runtime verification is
+separately documented in docs/COMPATIBILITY.md.
 """
 
 from __future__ import annotations
@@ -135,11 +133,13 @@ def inspect_app(
     if not english.get("base") or not english.get("dynamic"):
         raise PreflightError("Reference English base/dynamic catalogs are incomplete.")
 
+    supported = compat.SUPPORTED_VERSIONS.get(CANDIDATE)
     report: dict[str, object] = {
         "candidate": CANDIDATE,
-        "status": "STATIC_PASS_RUNTIME_UNVERIFIED",
-        "runtimeVerified": False,
-        "installable": False,
+        "status": "STATIC_PASS",
+        "runtimeVerificationPerformedByThisCommand": False,
+        "runtimeEvidenceRecorded": bool(supported and supported.runtime_verified),
+        "installable": supported is not None,
         "signatureValid": True,
         "bundleId": EXPECTED_BUNDLE_ID,
         "matchedAnchors": len(compat.ANCHORS),
@@ -169,7 +169,7 @@ def inspect_app(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="READ ONLY: inspect official Claude Desktop 2.26454.2 before runtime testing."
+        description="READ ONLY: inspect an official Claude Desktop 2.26454.2 source bundle."
     )
     parser.add_argument("--app", default="/Applications/Claude.app")
     parser.add_argument("--catalog-dir", type=Path)
@@ -191,8 +191,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.catalog_dir:
             print(f"Catalog coverage: {report['catalogCoverage']}")
             print(f"Accepted conditional branch collapses: {report['excusedBranchCollapses']}")
-        print("RUNTIME NOT VERIFIED. This script does not patch or install anything.")
-        print("The public installer remains locked to its runtime-verified allowlist.")
+        print("THIS COMMAND IS STATIC ONLY; no runtime launch performed here.")
+        print(f"Previously recorded runtime evidence: {report['runtimeEvidenceRecorded']}")
+        print(f"Included in exact-version installable allowlist: {report['installable']}")
+        print("See docs/COMPATIBILITY.md for verified environment and limitations.")
     return 0
 
 
