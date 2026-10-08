@@ -49,8 +49,8 @@ class VersionCommandTests(unittest.TestCase):
         code, out, _ = run("--json", "version")
         self.assertEqual(code, EXIT_OK)
         payload = json.loads(out)
-        self.assertEqual(payload["installable"], ["2.26454.0"])
-        self.assertEqual(payload["examinedNotInstallable"], ["2.26454.2"])
+        self.assertEqual(payload["installable"], ["2.26454.0", "2.26454.2"])
+        self.assertEqual(payload["examinedNotInstallable"], [])
 
 
 class UnsupportedVersionTests(unittest.TestCase):
