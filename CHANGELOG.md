@@ -9,7 +9,7 @@ compatibility with application versions is tracked separately in
 
 Nothing yet.
 
-## [0.1.0-beta] — pending release
+## [0.1.0-beta] — 2026-10-08
 
 Beta compatibility update: add official Claude Desktop 2.26454.2 to the
 strict installable allowlist. The original 2.26454.0 remains supported.
