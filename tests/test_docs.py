@@ -191,7 +191,7 @@ class VersionConsistencyTests(unittest.TestCase):
 
     def test_the_version_attribute_is_a_plain_literal(self):
         """setuptools reads it by static analysis, so it must stay a literal."""
-        self.assertRegex(self.init, r'(?m)^__version__ = "0\\.1\\.0-beta"$')
+        self.assertRegex(self.init, r'(?m)^__version__ = "0\.1\.0-beta"$')
 
     def test_changelog_has_a_section_for_this_version(self):
         self.assertIn("## [0.1.0-beta]", self.changelog)
