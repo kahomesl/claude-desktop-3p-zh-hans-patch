@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - adapt/desktop-2.26454.2-preflight
 
 permissions:
   contents: read
