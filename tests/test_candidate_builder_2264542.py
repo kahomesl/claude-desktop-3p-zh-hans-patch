@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import subprocess
+import sys
 from pathlib import Path
 
 from claude_zh_patch import compat
@@ -20,6 +22,18 @@ class CandidateBuilderSafetyTests(unittest.TestCase):
             self.root, version="2.26454.2", bundle_id="com.anthropic.claudefordesktop"
         )
         self.target = self.root / candidate.EXPECTED_TARGET_NAME
+
+    def test_direct_script_help_invocation_works(self):
+        script = Path(__file__).resolve().parents[1] / "scripts" / "build_candidate_2_26454_2.py"
+        result = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--catalog-dir", result.stdout)
 
     def test_separate_unused_target_accepted(self):
         candidate.validate_target(self.source, self.target)
