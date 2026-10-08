@@ -148,17 +148,42 @@ SUPPORTED_VERSIONS: dict[str, VersionInfo] = {
             ),
         },
     ),
+    "2.26454.2": VersionInfo(
+        cfbundleversion="2.26454.2",
+        runtime_verified=True,
+        verified_environment=(
+            "macOS 26.5.2 (25F84), Apple Silicon (arm64), Claude Desktop 2.26454.2, "
+            "SIP disabled, locally generated ad-hoc signed candidate "
+            "(Gatekeeper spctl rejected; quarantine absent)"
+        ),
+        notes=(
+            "Runtime verification on the same Mac as the 2.26454.0 reference: "
+            "official source signature, exact target hashes, patch/re-sign and static "
+            "verification passed. Candidate launched; zh-Hans appeared in picker, UI "
+            "rendered in Chinese, and locale persisted after restart. DeepSeek V4.1 "
+            "Flash through an already configured Gateway returned 'ok' twice. "
+            "SIP-enabled Macs, Intel, independent profile isolation, Keychain, "
+            "sign-in and other native integrations remain unverified. "
+            "The tool only localizes; it does not configure third-party gateways."
+        ),
+        # Independently checked on the official 2.26454.2 source: all three
+        # rewrite targets are byte-identical to the 2.26454.0 reference build.
+        file_sha256={
+            "shared-2-DgffKyBW.js": (
+                "d5e17aa1e80c60af3784988242e1c673308c5746bfdb45a1c8b449da17f6effb"
+            ),
+            "c49da61a8-BM3hC-jO.js": (
+                "b54dfa935ab39b7a7f4de79b3a2e5a0ecb985a0ae8ad0697274e0bf903f719f6"
+            ),
+            "shared-25-C8tkIaeS.js": (
+                "738b690f0637bc20727bfe70341307cb4712b61cdaa830c1b322f1bdbe7b5f9e"
+            ),
+        },
+    ),
 }
 
 # Examined but NOT runtime-verified. Never installable.
-ANCHOR_ONLY_VERSIONS: dict[str, str] = {
-    "2.26454.2": (
-        "Static inspection of the published 2.26454.2 build found the same three "
-        "target files with identical sha256 digests, and every anchor matched its "
-        "expected count. No runtime verification has been carried out, so this "
-        "build is documented but not installable. See docs/COMPATIBILITY.md."
-    ),
-}
+ANCHOR_ONLY_VERSIONS: dict[str, str] = {}
 
 # Files that are rewritten, for reporting and integrity checks.
 PATCHED_FILENAMES: tuple[str, ...] = tuple(a.filename for a in ANCHORS)
