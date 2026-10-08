@@ -21,10 +21,10 @@
 
 ## Install and verify
 
-Follow the [installation guide](../docs/INSTALL.md) or [中文安装指南](../docs/INSTALL.zh-Hans.md).
+Follow the [installation guide](https://github.com/kahomesl/claude-desktop-3p-zh-hans-patch/blob/main/docs/INSTALL.md) or [中文安装指南](https://github.com/kahomesl/claude-desktop-3p-zh-hans-patch/blob/main/docs/INSTALL.zh-Hans.md).
 
 Run `./zh-patch check --app /Applications/Claude.app --catalog-dir /path/to/your/catalog` before applying to a separate, nonexistent target path. Never overwrite your official app or an existing localized copy.
 
-Compatibility evidence: [docs/COMPATIBILITY.md](../docs/COMPATIBILITY.md).
+Compatibility evidence: [docs/COMPATIBILITY.md](https://github.com/kahomesl/claude-desktop-3p-zh-hans-patch/blob/main/docs/COMPATIBILITY.md).
 
 This is **Pre-release**, not a general-availability or universally compatible stable version.
