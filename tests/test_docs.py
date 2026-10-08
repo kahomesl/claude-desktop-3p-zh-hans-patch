@@ -191,7 +191,7 @@ class VersionConsistencyTests(unittest.TestCase):
 
     def test_the_version_attribute_is_a_plain_literal(self):
         """setuptools reads it by static analysis, so it must stay a literal."""
-        self.assertRegex(self.init, r'(?m)^__version__ = "0\.1\.0-beta")
+        self.assertRegex(self.init, r'(?m)^__version__ = "0\\.1\\.0-beta"$')
 
     def test_changelog_has_a_section_for_this_version(self):
         self.assertIn("## [0.1.0-beta]", self.changelog)
@@ -231,48 +231,6 @@ class CompatibilityMatrixTests(unittest.TestCase):
     def test_describes_how_a_version_is_added(self):
         self.assertIn("native", self.matrix.lower())
 
-
-if __name__ == "__main__":  # pragma: no cover
-    unittest.main()
-)
-
-    def test_changelog_has_a_section_for_this_version(self):
-        self.assertIn("## [0.1.0-alpha]", self.changelog)
-
-    def test_changelog_explains_the_normalised_form(self):
-        self.assertIn("0.1.0a0", self.changelog)
-
-    def test_the_version_looks_like_a_prerelease(self):
-        """A pre-release must not be mistakable for a stable version."""
-        from claude_zh_patch import __version__
-
-        self.assertRegex(__version__, r"^\d+\.\d+\.\d+-(alpha|beta|rc)\d*$")
-
-
-class CompatibilityMatrixTests(unittest.TestCase):
-    def setUp(self):
-        self.matrix = squash(read("docs/COMPATIBILITY.md"))
-
-    def test_lists_the_verified_build(self):
-        self.assertIn("2.26454.0", self.matrix)
-
-    def test_marks_the_examined_build_as_not_installable(self):
-        self.assertIn("2.26454.2", self.matrix)
-        lowered = self.matrix.lower()
-        self.assertTrue(
-            "not installable" in lowered or "is not installable" in lowered,
-            "the matrix must say 2.26454.2 is not installable",
-        )
-
-    def test_records_the_identical_digest_finding(self):
-        self.assertIn(
-            "d5e17aa1e80c60af3784988242e1c673308c5746bfdb45a1c8b449da17f6effb",
-            self.matrix,
-            "the matrix should record that both builds share the patched files",
-        )
-
-    def test_describes_how_a_version_is_added(self):
-        self.assertIn("native", self.matrix.lower())
 
 
 if __name__ == "__main__":  # pragma: no cover
