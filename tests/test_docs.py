@@ -42,8 +42,14 @@ def read(relative: str) -> str:
 
 
 def squash(text: str) -> str:
-    """Collapse whitespace so an assertion is not broken by prose wrapping."""
-    return " ".join(text.split())
+    """Normalise prose for assertion.
+
+    Collapses whitespace so wrapping does not break a phrase, and drops markdown
+    emphasis markers so that bolding a word does not either. Code samples and
+    backticks are left alone.
+    """
+    without_emphasis = text.replace("**", "").replace("`", "")
+    return " ".join(without_emphasis.split())
 
 
 class RequiredFileTests(unittest.TestCase):
@@ -204,6 +210,91 @@ class VersionConsistencyTests(unittest.TestCase):
         from claude_zh_patch import __version__
 
         self.assertRegex(__version__, r"^\d+\.\d+\.\d+-(alpha|beta|rc)\d*$")
+
+
+class LauncherDocumentationTests(unittest.TestCase):
+    """The launcher's caveats must be documented, not just implemented.
+
+    Requirement: the READMEs and the install guides must say that a `.command`
+    can be affected by macOS download quarantine and security prompts, and that
+    SIP-enabled environments remain unverified.
+    """
+
+    def setUp(self):
+        self.readme = squash(read("README.md"))
+        self.readme_zh = squash(read("README.zh-Hans.md"))
+        self.install = squash(read("docs/INSTALL.md"))
+        self.install_zh = squash(read("docs/INSTALL.zh-Hans.md"))
+        self.command_name = "启动Claude中文版.command"
+
+    def assert_mentions(self, haystack: str, *phrases: str):
+        for phrase in phrases:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, haystack)
+
+    def test_both_readmes_name_the_launcher(self):
+        self.assertIn(self.command_name, self.readme)
+        self.assertIn(self.command_name, self.readme_zh)
+
+    def test_both_readmes_explain_the_quarantine_problem(self):
+        self.assert_mentions(
+            self.readme,
+            "quarantine",
+            "unidentified developer",
+            "xattr -d com.apple.quarantine",
+        )
+        self.assert_mentions(
+            self.readme_zh,
+            "隔离",
+            "身份不明的开发者",
+            "xattr -d com.apple.quarantine",
+        )
+
+    def test_neither_readme_suggests_disabling_system_protections(self):
+        """The word may appear in a sentence refusing to do it; the command may not."""
+        for name, text in (
+            ("README.md", self.readme),
+            ("README.zh-Hans.md", self.readme_zh),
+        ):
+            with self.subTest(file=name):
+                for command in (
+                    "spctl --master-disable",
+                    "csrutil disable",
+                    "csrutil status off",
+                    "sudo spctl",
+                    "sudo csrutil",
+                ):
+                    self.assertNotIn(command, text)
+        self.assertIn("does not ask you to turn Gatekeeper off", self.readme)
+        self.assertIn("不会让你关闭 Gatekeeper", self.readme_zh)
+
+    def test_the_launcher_is_tied_to_the_unconfirmed_sip_environment(self):
+        self.assert_mentions(
+            self.readme,
+            "Compatibility with SIP enabled is unconfirmed",
+            "SIP disabled",
+        )
+        self.assert_mentions(self.readme_zh, "SIP 开启环境下的兼容性尚未确认")
+
+    def test_the_python_prerequisite_is_stated(self):
+        self.assert_mentions(self.readme, "Python 3.9", "xcode-select --install")
+        self.assert_mentions(self.readme_zh, "Python 3.9", "xcode-select --install")
+
+    def test_both_install_guides_point_at_the_launcher(self):
+        self.assertIn(self.command_name, self.install)
+        self.assertIn(self.command_name, self.install_zh)
+
+    def test_the_readme_says_the_launcher_is_a_front_end(self):
+        self.assert_mentions(
+            self.readme,
+            "front end",
+            "version allowlist",
+        )
+
+    def test_the_changelog_records_the_launcher(self):
+        changelog = squash(read("CHANGELOG.md"))
+        self.assertIn(self.command_name, changelog)
+        self.assertIn("Unreleased", changelog)
 
 
 class CompatibilityMatrixTests(unittest.TestCase):

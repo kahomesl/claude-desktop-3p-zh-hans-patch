@@ -5,6 +5,15 @@ that tells you what you are agreeing to.
 
 ---
 
+## The double-click option
+
+Everything below can be done by double-clicking **`启动Claude中文版.command`**
+instead. It runs the same three commands and prints progress in Chinese; see
+[the README](../README.md#one-click-install) for what it does and for the
+quarantine warning you will probably hit the first time.
+
+---
+
 ## Before you start
 
 You need:

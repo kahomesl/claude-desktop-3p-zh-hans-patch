@@ -7,7 +7,35 @@ compatibility with application versions is tracked separately in
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **A double-clickable launcher, `启动Claude中文版.command`.** For users who would
+  rather not type terminal commands: on first run it opens the macOS folder
+  picker for the language resource, remembers the choice in
+  `~/.config/claude-zh-patch/config.json` (mode `600`), then runs
+  `check → apply → verify` and offers to start the copy. Later runs verify the
+  existing copy and open it.
+- The launcher is a front end, not a second implementation: it calls the same
+  CLI commands, so the version allowlist, the ad-hoc signing and the ICU
+  validation are unchanged and cannot be bypassed through it. An existing bundle
+  at the target is verified, never overwritten.
+- It requires no administrator rights, never disables SIP or Gatekeeper, never
+  terminates a process, and builds no shell command from user input —
+  subprocesses receive argument lists, and the AppleScript prompts are two fixed
+  string literals. 58 tests cover the launcher, including the paths, the existing
+  target, the signature failure and the version refusal.
+
+### Known limitations
+
+- The launcher needs Python 3.9 or newer, which macOS no longer ships. When it is
+  missing the script explains this and points at `xcode-select --install`; the
+  double-click is one step *after* the prerequisites, not a substitute for them.
+- A downloaded `.command` carries a quarantine attribute and macOS will refuse to
+  run it. The README documents the alternatives and does not suggest disabling
+  Gatekeeper.
+- The launcher has been verified to the same extent as the rest of the project:
+  one machine, macOS 26.5.2 on Apple Silicon, **SIP disabled**. Compatibility with
+  SIP enabled remains unconfirmed.
 
 ## [0.1.0-beta] — 2026-10-08
 
