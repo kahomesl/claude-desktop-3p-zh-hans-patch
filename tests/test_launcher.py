@@ -20,6 +20,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from claude_zh_patch import cli, launcher
 from claude_zh_patch.errors import (
@@ -60,7 +61,7 @@ class LauncherTestCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        self.root = Path(self._tmp.name).resolve()
         self.addCleanup(support.unregister_version, support.SYNTHETIC_VERSION)
 
         self.out = io.StringIO()
@@ -554,7 +555,7 @@ class ConfigFileTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        self.root = Path(self._tmp.name).resolve()
         self.path = self.root / "cfg" / "config.json"
 
     def test_file_mode_is_600_and_directory_is_700(self):
@@ -636,6 +637,188 @@ class ConfigFileTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # the things it must never do
 # ---------------------------------------------------------------------------
+
+
+class AtomicConfigTests(unittest.TestCase):
+    setUp = ConfigFileTests.setUp
+
+    def save(self):
+        return launcher.save_config(launcher.Config(self.root / "c", self.root / "t.app"), self.path)
+
+    def test_private_existing_config_updates_atomically(self):
+        self.save()
+        old_inode = self.path.stat().st_ino
+        self.save()
+        self.assertNotEqual(old_inode, self.path.stat().st_ino)
+
+    def test_foreign_file_and_wide_directory_are_untouched(self):
+        self.path.parent.mkdir(mode=0o700)
+        self.path.write_text("foreign", encoding="utf-8")
+        self.path.chmod(0o600)
+        with self.assertRaises(OSError):
+            self.save()
+        self.assertEqual(self.path.read_text(), "foreign")
+        self.path.unlink()
+        self.path.parent.chmod(0o755)
+        with self.assertRaises(OSError):
+            self.save()
+        self.assertEqual(stat.S_IMODE(self.path.parent.stat().st_mode), 0o755)
+
+    def test_symlink_directory_and_file_are_refused(self):
+        destination = self.root / "destination"
+        destination.mkdir(mode=0o700)
+        self.path.parent.symlink_to(destination, target_is_directory=True)
+        with self.assertRaises(OSError):
+            self.save()
+        self.path.parent.unlink()
+        self.path.parent.mkdir(mode=0o700)
+        victim = self.root / "victim"
+        victim.write_text("safe")
+        self.path.symlink_to(victim)
+        with self.assertRaises(OSError):
+            self.save()
+        self.assertEqual(victim.read_text(), "safe")
+
+    def test_hardlink_fifo_and_wide_file_are_refused(self):
+        self.save()
+        os.link(self.path, self.root / "link")
+        with self.assertRaises(OSError):
+            self.save()
+        (self.root / "link").unlink()
+        self.path.chmod(0o644)
+        with self.assertRaises(OSError):
+            self.save()
+        self.path.unlink()
+        os.mkfifo(self.path, 0o600)
+        with self.assertRaises(OSError):
+            self.save()
+
+    def test_failed_replace_preserves_old_file_and_cleans_temporary(self):
+        self.save()
+        before = self.path.read_bytes()
+        with patch.object(launcher.os, "replace", side_effect=OSError("failed")):
+            with self.assertRaises(OSError):
+                self.save()
+        self.assertEqual(self.path.read_bytes(), before)
+        self.assertEqual(list(self.path.parent.iterdir()), [self.path])
+
+    def test_destination_change_before_replace_is_refused(self):
+        self.save()
+        real_fsync = os.fsync
+        def change(fd):
+            real_fsync(fd)
+            self.path.write_text("intervening file")
+        with patch.object(launcher.os, "fsync", side_effect=change):
+            with self.assertRaises(OSError):
+                self.save()
+        self.assertEqual(self.path.read_text(), "intervening file")
+        self.assertEqual(list(self.path.parent.iterdir()), [self.path])
+
+    def test_temporary_collision_does_not_delete_other_file(self):
+        self.save()
+        collision = self.path.parent / ".config-fixed.tmp"
+        collision.write_text("do not delete")
+        with patch.object(launcher.secrets, "token_hex", return_value="fixed"):
+            with self.assertRaises(FileExistsError):
+                self.save()
+        self.assertEqual(collision.read_text(), "do not delete")
+
+    def test_failed_file_fsync_preserves_old_configuration(self):
+        self.save()
+        before = self.path.read_bytes()
+        with patch.object(launcher.os, "fsync", side_effect=OSError("failed")):
+            with self.assertRaises(OSError):
+                self.save()
+        self.assertEqual(self.path.read_bytes(), before)
+        self.assertEqual(list(self.path.parent.iterdir()), [self.path])
+
+    def test_wrong_owner_is_refused(self):
+        with patch.object(launcher.os, "getuid", return_value=os.getuid() + 1):
+            with self.assertRaises(OSError):
+                self.save()
+
+
+class FlowRegressionTests(LauncherTestCase):
+    def test_saved_copy_launches_without_source_or_catalog(self):
+        target = self.root / "Existing.app"
+        target.mkdir()
+        launcher.save_config(launcher.Config(self.root / "MissingCatalog", target), self.config)
+        opened = []
+        machine = self.make_launcher(
+            self.root / "Absent.app",
+            run_cli=lambda argv: (self.calls.append(list(argv)), EXIT_OK)[1],
+            choose=lambda kind: self.fail("unexpected picker"),
+            verify_source=lambda app: self.fail("unexpected source verification"),
+            opener=lambda app: (opened.append(app), (True, ""))[1],
+        )
+        self.assertEqual(machine.run(), EXIT_OK)
+        self.assertEqual([c[0] for c in self.calls], ["verify"])
+        self.assertEqual(opened, [target])
+
+    def test_unwritable_parent_stops_before_install_or_save(self):
+        machine = self.make_launcher(self.make_app())
+        with patch.object(launcher.os, "access", return_value=False):
+            self.assertNotEqual(machine.run(catalog=self.make_catalog(), launch=False), EXIT_OK)
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.config.exists())
+
+    def test_parent_creation_failure_does_not_save_configuration(self):
+        target = self.root / "Applications" / "Out.app"
+        machine = self.make_launcher(self.make_app(), default_target=target)
+        with patch.object(launcher.Path, "home", return_value=self.root), patch.object(
+            launcher.Path, "mkdir", side_effect=PermissionError("denied")
+        ):
+            self.assertNotEqual(machine.run(catalog=self.root / "catalog", launch=False), EXIT_OK)
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.config.exists())
+
+    def test_existing_copy_needs_no_source_catalog_or_config(self):
+        target = self.root / "Existing.app"
+        target.mkdir()
+        machine = self.make_launcher(self.root / "Absent.app", run_cli=lambda argv: (self.calls.append(list(argv)), EXIT_OK)[1], choose=lambda kind: self.fail("unexpected picker"))
+        self.assertEqual(machine.run(target=target, launch=False), EXIT_OK)
+        self.assertEqual([c[0] for c in self.calls], ["verify"])
+        self.assertFalse(self.config.exists())
+
+    def test_install_failure_keeps_partial_target_and_no_config(self):
+        app = self.make_app()
+        target = self.root / "Partial.app"
+        def run(argv):
+            if argv[0] == "apply":
+                target.mkdir()
+            return 1 if argv[0] == "verify" else EXIT_OK
+        machine = self.make_launcher(app, run_cli=run)
+        self.assertNotEqual(machine.run(catalog=self.make_catalog(), target=target, launch=False), EXIT_OK)
+        self.assertTrue(target.exists())
+        self.assertFalse(self.config.exists())
+        self.assertIn("部分目标保留", self.text())
+
+    def test_custom_missing_parent_is_not_created(self):
+        machine = self.make_launcher(self.make_app())
+        target = self.root / "missing" / "Out.app"
+        self.assertNotEqual(machine.run(catalog=self.make_catalog(), target=target, launch=False), EXIT_OK)
+        self.assertFalse(target.parent.exists())
+        self.assertFalse(self.config.exists())
+
+    def test_default_applications_parent_is_created(self):
+        app = self.make_app()
+        target = self.root / "Applications" / "Out.app"
+        machine = self.make_launcher(app, default_target=target)
+        with patch.object(launcher.Path, "home", return_value=self.root), support.FakeSigning({"com.apple.security.cs.allow-jit": True}):
+            self.assertEqual(machine.run(catalog=self.make_catalog(), launch=False), EXIT_OK, self.text())
+        self.assertTrue(target.exists())
+
+
+class PickerRegressionTests(unittest.TestCase):
+    def test_only_cancel_returns_none(self):
+        with patch.object(launcher.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "User canceled. (-128)")):
+            self.assertIsNone(launcher._osascript("fixed"))
+        with patch.object(launcher.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "denied (-1743)")):
+            with self.assertRaises(launcher.LauncherAbort):
+                launcher._osascript("fixed")
+        with patch.object(launcher.subprocess, "run", side_effect=OSError("missing")):
+            with self.assertRaises(launcher.LauncherAbort):
+                launcher._osascript("fixed")
 
 
 class SafetyInvariantTests(unittest.TestCase):
@@ -775,7 +958,7 @@ class CommandScriptBehaviourTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        self.root = Path(self._tmp.name).resolve()
 
     def _run(self, argv, *, env=None):
         return subprocess.run(

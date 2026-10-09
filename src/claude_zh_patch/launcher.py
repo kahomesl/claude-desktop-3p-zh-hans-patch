@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
+import stat
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -118,7 +120,11 @@ def load_config(path: Path | None = None) -> Config | None:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    if not isinstance(data, dict) or data.get("schemaVersion") != SCHEMA_VERSION:
+    return _parse_config(data)
+
+
+def _parse_config(data: object) -> Config | None:
+    if not isinstance(data, dict) or set(data) != {"schemaVersion", "catalogPath", "targetApp"} or type(data.get("schemaVersion")) is not int or data.get("schemaVersion") != SCHEMA_VERSION:
         return None
     catalog = data.get("catalogPath")
     target = data.get("targetApp")
@@ -130,28 +136,72 @@ def load_config(path: Path | None = None) -> Config | None:
 
 
 def save_config(config: Config, path: Path | None = None) -> Path:
-    """Write the configuration with mode 600, creating its directory if needed.
+    """Atomically update only a private, user-owned tool configuration.
 
-    The file is created with the restrictive mode rather than chmod-ed
-    afterwards, so it is never briefly readable by anyone else.
+    Walk from the root using directory descriptors: no directory link is followed.
+    Private leaf permissions exclude other users; this is not a lock against a
+    malicious process running as the same user. Recheck the destination before
+    replace to catch intervening changes, without truncating any existing inode.
     """
-    path = Path(path) if path is not None else CONFIG_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path = Path(os.path.abspath(Path(path) if path is not None else CONFIG_PATH))
+    flags = os.O_NOFOLLOW | os.O_CLOEXEC
+    directory = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY | flags)
+    temporary = None
     try:
-        os.chmod(path.parent, CONFIG_DIR_MODE)
-    except OSError:
-        pass
+        for component in path.parent.parts[1:]:
+            try:
+                child = os.open(component, os.O_RDONLY | os.O_DIRECTORY | flags, dir_fd=directory)
+            except FileNotFoundError:
+                os.mkdir(component, CONFIG_DIR_MODE, dir_fd=directory)
+                child = os.open(component, os.O_RDONLY | os.O_DIRECTORY | flags, dir_fd=directory)
+            os.close(directory)
+            directory = child
+        info = os.fstat(directory)
+        if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            raise OSError("配置目录必须属于当前用户且为私有权限；请检查目录后重试")
 
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, CONFIG_FILE_MODE)
-    try:
-        handle = os.fdopen(descriptor, "w", encoding="utf-8")
-    except Exception:
-        os.close(descriptor)
-        raise
-    with handle:
-        json.dump(config.as_dict(), handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-    os.chmod(path, CONFIG_FILE_MODE)
+        def existing():
+            try:
+                fd = os.open(path.name, os.O_RDONLY | os.O_NONBLOCK | flags, dir_fd=directory)
+            except FileNotFoundError:
+                return None
+            with os.fdopen(fd, "r", encoding="utf-8") as handle:
+                info = os.fstat(handle.fileno())
+                if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                        or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077):
+                    raise OSError("拒绝更新非私有、非普通或多硬链接的配置文件")
+                try:
+                    parsed = _parse_config(json.load(handle))
+                except (ValueError, UnicodeError) as exc:
+                    raise OSError("已有文件不是本工具配置，拒绝覆盖") from exc
+                if parsed is None:
+                    raise OSError("已有文件不是本工具配置，拒绝覆盖")
+                return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+        original = existing()
+        candidate = ".config-" + secrets.token_hex(16) + ".tmp"
+        fd = os.open(candidate, os.O_WRONLY | os.O_CREAT | os.O_EXCL | flags,
+                     CONFIG_FILE_MODE, dir_fd=directory)
+        temporary = candidate
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            os.fchmod(handle.fileno(), CONFIG_FILE_MODE)
+            json.dump(config.as_dict(), handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        current = existing()
+        if original != current:
+            raise OSError("配置文件在保存期间发生变化，拒绝覆盖；请重试")
+        os.replace(temporary, path.name, src_dir_fd=directory, dst_dir_fd=directory)
+        temporary = None
+        os.fsync(directory)
+    finally:
+        if temporary is not None:
+            try:
+                os.unlink(temporary, dir_fd=directory)
+            except FileNotFoundError:
+                pass
+        os.close(directory)
     return path
 
 
@@ -207,11 +257,16 @@ class Console:
 
 def _osascript(script: str) -> str | None:
     """Run a fixed AppleScript. Returns stdout, or ``None`` if the user cancelled."""
-    result = subprocess.run(
-        [OSASCRIPT, "-e", script], capture_output=True, text=True
-    )
+    try:
+        result = subprocess.run(
+            [OSASCRIPT, "-e", script], capture_output=True, text=True
+        )
+    except OSError as exc:
+        raise LauncherAbort(f"无法打开选择窗口：{exc}\n请检查 /usr/bin/osascript，或使用 --catalog-dir / --target 指定路径。") from exc
     if result.returncode != 0:
-        return None
+        if "(-128)" in result.stderr:
+            return None
+        raise LauncherAbort(f"选择窗口失败：{result.stderr.strip()}\n请检查自动化权限，或使用 --catalog-dir / --target 指定路径。")
     return result.stdout.strip()
 
 
@@ -296,12 +351,6 @@ def validate_target(target: Path, *, official: Path = OFFICIAL_APP) -> None:
             raise LauncherAbort(
                 f"拒绝写入系统目录：{root}\n请改选你自己的文件夹，例如 ~/Applications。"
             )
-
-    parent = resolved.parent
-    if parent.exists() and not os.access(parent, os.W_OK):
-        raise LauncherAbort(
-            f"没有写入权限：{parent}\n请换一个你有写权限的位置。"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -555,12 +604,6 @@ class Launcher:
 
         self.step(1, 5, "读取配置…")
         try:
-            self.preflight_source()
-            chosen_catalog = (
-                Path(catalog).expanduser()
-                if catalog is not None
-                else self.resolve_catalog(saved.catalog if saved else None)
-            )
             chosen_target = self.resolve_target(
                 saved.target if saved else None, explicit=target
             )
@@ -571,14 +614,7 @@ class Launcher:
             self.console.warn("")
             return 1
 
-        try:
-            save_config(
-                Config(catalog=chosen_catalog, target=chosen_target), self.config_path
-            )
-        except OSError as exc:
-            self.console.warn(f"提示：无法保存配置（{exc}），下次仍需重新选择。")
-
-        if chosen_target.exists():
+        if os.path.lexists(chosen_target):
             verified, code = self.check_existing(chosen_target)
             if not verified:
                 self.console.warn("")
@@ -592,9 +628,29 @@ class Launcher:
                 return code
             self.console.say("✓ 已存在的副本校验通过。")
         else:
-            code = self.install(chosen_catalog, chosen_target)
+            try:
+                parent = chosen_target.parent
+                if not parent.exists() and parent == Path.home() / "Applications":
+                    parent.mkdir(mode=0o700)
+                if not parent.is_dir() or not os.access(parent, os.W_OK | os.X_OK):
+                    raise LauncherAbort(f"目标父目录必须已存在、是目录且可写/可遍历：{parent}\n请手动创建目录或另选位置。")
+                self.preflight_source()
+                chosen_catalog = (
+                    Path(catalog).expanduser() if catalog is not None
+                    else self.resolve_catalog(saved.catalog if saved else None)
+                )
+                code = self.install(chosen_catalog, chosen_target)
+            except (LauncherAbort, OSError) as exc:
+                self.console.warn(str(exc))
+                code = 1
             if code != EXIT_OK:
+                if os.path.lexists(chosen_target):
+                    self.console.warn(f"部分目标保留在：{chosen_target}\n请检查后手动处理，或对本工具副本使用 ./zh-patch rollback；启动器不会自行删除。")
                 return code
+            try:
+                save_config(Config(catalog=chosen_catalog, target=chosen_target), self.config_path)
+            except OSError as exc:
+                self.console.warn(f"提示：无法保存配置（{exc}），下次仍需重新选择。")
             self.console.say("")
             self.console.say("✓ 安装完成。")
             self.console.say(
